@@ -41,7 +41,7 @@ import org.xmldb.api.base.XMLDBException;
 public class RemoteResourceSet implements ResourceSet {
 
     private final RemoteCollection collection;
-    private int handle = -1;
+    private volatile int handle = -1;
     private int hash = -1;
     private final List resources;
     private final Properties outputProperties;
@@ -75,9 +75,9 @@ public class RemoteResourceSet implements ResourceSet {
         } catch (final XmlRpcException e) {
             LOG.error("Failed to release query result on server: " + e.getMessage(), e);
         }
-        handle = -1;
         hash = -1;
         resources.clear();
+        handle = -1;
     }
 
     @Override
@@ -235,7 +235,8 @@ public class RemoteResourceSet implements ResourceSet {
     protected void finalize() throws Throwable {
         try {
             clear();
-        } finally {
+        }
+        finally {
             super.finalize();
         }
     }

@@ -1069,12 +1069,16 @@ public class RESTServer {
             }
 
             if (mime.isXMLType()) {
-                final InputSource vtfis = new VirtualTempFileInputSource(vtempFile, charset);
-
-                final IndexInfo info = collection.validateXMLResource(transaction, broker, docUri, vtfis);
-                info.getDocument().getMetadata().setMimeType(contentType);
-                collection.store(transaction, broker, info, vtfis, false);
-                response.setStatus(HttpServletResponse.SC_CREATED);
+                final VirtualTempFileInputSource vtfis = new VirtualTempFileInputSource(vtempFile, charset);
+                try {
+                    final IndexInfo info = collection.validateXMLResource(transaction, broker, docUri, vtfis);
+                    info.getDocument().getMetadata().setMimeType(contentType);
+                    collection.store(transaction, broker, info, vtfis, false);
+                    response.setStatus(HttpServletResponse.SC_CREATED);
+                }
+                finally {
+                    vtfis.close();
+                }
             } else {
 
                 try(final InputStream is = vtempFile.getByteStream()) {
