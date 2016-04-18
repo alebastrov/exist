@@ -53,10 +53,10 @@ public abstract class AbstractRemoteResource extends AbstractRemote
     protected final XmldbURI path;
     private String mimeType;
 
-    protected VirtualTempFile vfile = null;
+    protected volatile VirtualTempFile vfile = null;
     private VirtualTempFile contentVFile = null;
-    protected InputSource inputSource = null;
-    private boolean isLocal = false;
+    protected volatile InputSource inputSource = null;
+    private volatile boolean isLocal = false;
     private long contentLen = 0L;
     private Permission permissions = null;
 
@@ -96,10 +96,13 @@ public abstract class AbstractRemoteResource extends AbstractRemote
     }
 
     @Override
-    protected void finalize()
-            throws Throwable {
-        freeResources();
-        super.finalize();
+    protected void finalize() throws Throwable {
+        try {
+            freeResources();
+        }
+        finally {
+            super.finalize();
+        }
     }
 
     @Override

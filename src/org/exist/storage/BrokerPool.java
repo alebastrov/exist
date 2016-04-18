@@ -71,6 +71,10 @@ import org.expath.pkg.repo.PackageException;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.lang.ref.Reference;
+import java.lang.reflect.Array;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -1999,6 +2003,8 @@ public class BrokerPool implements Database {
                 //TOUNDERSTAND (pb) : shutdown() is called on only *one* broker ?
                 // WM: yes, the database files are shared, so only one broker is needed to close them for all
                 if(broker != null) {
+                    //clearing additional resources, like ThreadLocal
+                    clearThreadLocals();
                     broker.pushSubject(securityManager.getSystemSubject());
                     broker.shutdown();
                 }
@@ -2059,6 +2065,53 @@ public class BrokerPool implements Database {
             shutdownListener = null;
             securityManager = null;
             notificationService = null;
+        }
+    }
+
+    private void clearThreadLocals() {
+        for (Thread thread : Thread.getAllStackTraces().keySet()){
+            try{
+                cleanThreadLocalsForThread(thread);
+            }
+            catch (Exception ex){
+                LOG.error("Could not clear ThreadLocals for thread: " + thread.toString());
+            }
+        }
+    }
+
+    private void cleanThreadLocalsForThread(Thread thread) {
+        try {
+            // Get a reference to the thread locals table of the current thread
+            Field threadLocalsField = Thread.class.getDeclaredField("threadLocals");
+            threadLocalsField.setAccessible(true);
+            Object threadLocalTable = threadLocalsField.get(thread);
+
+            // Get a reference to the array holding the thread local variables inside the
+            // ThreadLocalMap of the current thread
+            Class threadLocalMapClass = Class.forName("java.lang.ThreadLocal$ThreadLocalMap");
+            Field tableField = threadLocalMapClass.getDeclaredField("table");
+            tableField.setAccessible(true);
+            Object table = tableField.get(threadLocalTable);
+
+            // The key to the ThreadLocalMap is a WeakReference object. The referent field of this object
+            // is a reference to the actual ThreadLocal variable
+            Field referentField = Reference.class.getDeclaredField("referent");
+            referentField.setAccessible(true);
+
+            for (int i=0; i < Array.getLength(table); i++) {
+                // Each entry in the table array of ThreadLocalMap is an Entry object
+                // representing the thread local reference and its value
+                Object entry = Array.get(table, i);
+                if (entry != null) {
+                    // Get a reference to the thread local object and remove it from the table
+                    ThreadLocal threadLocal = (ThreadLocal)referentField.get(entry);
+                    threadLocal.remove();
+                }
+            }
+        }
+        catch(Exception e) {
+            // We will tolerate an exception here and just log it
+            throw new IllegalStateException(e);
         }
     }
 

@@ -368,10 +368,15 @@ public class ExistCollection extends ExistResource {
 
                 // Stream into database
                 VirtualTempFileInputSource vtfis = new VirtualTempFileInputSource(vtf);
-                IndexInfo info = collection.validateXMLResource(txn, broker, newNameUri, vtfis);
-                DocumentImpl doc = info.getDocument();
-                doc.getMetadata().setMimeType(mime.getName());
-                collection.store(txn, broker, info, vtfis, false);
+                try {
+                    IndexInfo info = collection.validateXMLResource(txn, broker, newNameUri, vtfis);
+                    DocumentImpl doc = info.getDocument();
+                    doc.getMetadata().setMimeType(mime.getName());
+                    collection.store(txn, broker, info, vtfis, false);
+                }
+                finally {
+                    vtfis.close();
+                }
 
             } else {
 
